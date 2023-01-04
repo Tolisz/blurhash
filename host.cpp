@@ -4,12 +4,8 @@
 #include "stb_image.h"
 
 #include <CL/cl.h>
-#include <windows.h>
 
-char* read_file(const char* filename, size_t* size);
-
-#define PROGRAM_FILE "kernel.cl"
-#define KERNEL_FUNC "POPRAW_MNIE"
+#include "BigFactors.h"
 
 int main()
 {
@@ -25,12 +21,13 @@ int main()
 
     // image loading
     int width, height, nrChannels;
-    unsigned char* data = stbi_load("img/restaurant.jpg", &width, &height, &nrChannels, 3);
-    if (!data)
+    unsigned char* img_data = stbi_load("img/restaurant.jpg", &width, &height, &nrChannels, 3);
+    if (!img_data)
     {
         std::cout << "Can not read your image file, try to use another one" << std::endl;
         return -1;
     }
+
 
     /// ---------------------------------------------------
     /// ---------------------------------------------------
@@ -86,35 +83,40 @@ int main()
         exit(1);
     };
 
-    /// ------------------------------------
-    ///               program 
-    /// ------------------------------------
 
-    cl_program program;
-    char* program_buffer, * program_log;
-    size_t program_size, log_size;
+    BigFactors(device, context, queue, width, height, img_data, xComp, yComp);
 
-    program_buffer = read_file(PROGRAM_FILE, &program_size);
-    program = clCreateProgramWithSource(context, 1, (const char**)&program_buffer, &program_size, &err);
-    if (err < 0)
-    {
-        perror("Couldn't create the program");
-        exit(1);
-    }
 
-    free(program_buffer);
+    ///// ------------------------------------
+    /////               program 
+    ///// ------------------------------------
 
-    err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-    if (err < 0) {
+    //cl_program program;
+    //char* program_buffer, * program_log;
+    //size_t program_size, log_size;
 
-        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-        program_log = (char*)malloc(log_size + 1);
-        program_log[log_size] = '\0';
-        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size + 1, program_log, NULL);
-        printf("%s\n", program_log);
-        free(program_log);
-        exit(1);
-    }
+    //program_buffer = read_file(PROGRAM_FILE, &program_size);
+    //program = clCreateProgramWithSource(context, 1, (const char**)&program_buffer, &program_size, &err);
+    //if (err < 0)
+    //{
+    //    perror("Couldn't create the program");
+    //    exit(1);
+    //}
+
+    //free(program_buffer);
+
+    //err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+    //if (err < 0) {
+
+    //    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+    //    program_log = (char*)malloc(log_size + 1);
+    //    program_log[log_size] = '\0';
+    //    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size + 1, program_log, NULL);
+    //    printf("%s\n", program_log);
+    //    free(program_log);
+    //    exit(1);
+    //}
+
 
 
     /// ------------------------------------
@@ -127,33 +129,12 @@ int main()
     //    printf("Couldn't create a kernel: %d", err);
     //    exit(1);
     //};
+    
 
 
-
+    stbi_image_free(img_data);
 
 
 	std::cout << "Hello World" << std::endl;
 }
 
-
-char* read_file(const char* filename, size_t* size) {
-
-    FILE* handle;
-    char* buffer;
-
-    /* Read program file and place content into buffer */
-    handle = fopen(filename, "rb");
-    if (handle == NULL) {
-        perror("Couldn't find the file");
-        exit(1);
-    }
-    fseek(handle, 0, SEEK_END);
-    *size = (size_t)ftell(handle);
-    rewind(handle);
-    buffer = (char*)malloc(*size + 1);
-    buffer[*size] = '\0';
-    fread(buffer, sizeof(char), *size, handle);
-    fclose(handle);
-
-    return buffer;
-}
