@@ -189,17 +189,24 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="BigFactors.cpp" />
-    <ClCompile Include="host.cpp" />
-    <ClCompile Include="utils.cpp" />
+    <ClCompile Include="src\BigFactors.cpp" />
+    <ClCompile Include="src\blurhash\encode.cpp" />
+    <ClCompile Include="src\CPU_impl.cpp" />
+    <ClCompile Include="src\GPU_impl.cpp" />
+    <ClCompile Include="src\host.cpp" />
+    <ClCompile Include="src\utils.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BigFactors.h" />
-    <ClInclude Include="stb_image.h" />
-    <ClInclude Include="utils.h" />
+    <ClInclude Include="src\BigFactors.h" />
+    <ClInclude Include="src\blurhash\common.h" />
+    <ClInclude Include="src\blurhash\encode.h" />
+    <ClInclude Include="src\CPU_impl.h" />
+    <ClInclude Include="src\GPU_impl.h" />
+    <ClInclude Include="src\stb_image.h" />
+    <ClInclude Include="src\utils.h" />
   </ItemGroup>
   <ItemGroup>
-    <Intel_OpenCL_Build_Rules Include="BigFactors.cl">
+    <Intel_OpenCL_Build_Rules Include="kernels\BigFactors.cl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>

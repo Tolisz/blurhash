@@ -1,4 +1,4 @@
-#include "utils.h"
+﻿#include "utils.h"
 
 #include <iostream>
 
@@ -72,4 +72,37 @@ cl_kernel create_cl_kelner(cl_program& program,
     };
 
     return kernel;
+}
+
+cl_mem create_buffer(cl_context context, cl_mem_flags flags, size_t size, void* host_ptr)
+{
+    cl_int err;
+
+    cl_mem buffor;
+    buffor = clCreateBuffer(context, flags, size, host_ptr, &err);
+    if (err)
+    {
+        std::cout << "Coudn't create a buffor for a cl_BigFactors on GPU: err = " << err << std::endl;
+        exit(1);
+    }
+
+    return buffor;
+}
+
+void set_argument(cl_kernel kernel, cl_uint arg_index, size_t arg_size, const void* arg_value)
+{
+    cl_int err;
+
+    err = clSetKernelArg(kernel, arg_index, arg_size, arg_value);
+    if (err < 0) {
+        std::cout << "Couldn't set the kernel " << arg_index << " argument: err = " << err << std::endl;
+
+        char kernel_name[32];
+        if (clGetKernelInfo(kernel, CL_KERNEL_FUNCTION_NAME, sizeof(kernel_name), kernel_name, NULL) == CL_SUCCESS)
+            std::cout << "The kernel name " << kernel_name << std::endl;
+        else 
+            std::cout << "Coudln't take kelner name" << std::endl;
+
+        exit(1);
+    }
 }
