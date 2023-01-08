@@ -92,6 +92,15 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     set_argument(kernel, 5, sizeof(int), &yComponents);
 
 
+    // kelner 2 
+    cl_kernel kernel2 = create_cl_kelner(program, "sumVertically");
+
+    // set kelner 2 arguments
+    set_argument(kernel2, 0, sizeof(cl_mem), &cl_BigFactors);
+    set_argument(kernel2, 1, sizeof(int), &img_W);
+    set_argument(kernel2, 2, sizeof(int), &img_H);
+
+
     // Maksymalna liczba wątków które mogą być w jednym work-group (CUDA: w jednym blocku)
     // 
     size_t maxWorkGroupSize;
@@ -100,6 +109,8 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     
     std::cout << "Maximal work-group size = " << maxWorkGroupSize << std::endl;
 
+
+
     size_t global_size[2];
     global_size[0] = img_W + (maxWorkGroupSize - (img_W) % maxWorkGroupSize);
     global_size[1] = img_H;
@@ -107,6 +118,17 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     size_t local_size[2];
     local_size[0] = maxWorkGroupSize;
     local_size[1] = 1;
+
+
+
+    size_t global_size_kelner2[2]; 
+    global_size_kelner2[0] = 1;
+    global_size_kelner2[1] = img_H + (maxWorkGroupSize - (img_H) % maxWorkGroupSize);
+
+    size_t local_size_kelner2[2];
+    local_size_kelner2[0] = 1;
+    local_size_kelner2[1] = maxWorkGroupSize;
+
 
     for (int y = 0; y < yComponents; y++)
     {
@@ -130,6 +152,23 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
             if (err < 0) {
                 ERROR("Couldn't wait for events in BigFactors: err = " << err);
             }
+
+
+            set_argument(kernel2, 3, sizeof(int), &x);
+            set_argument(kernel2, 4, sizeof(int), &y);
+
+            err = clEnqueueNDRangeKernel(queue, kernel2, 2, NULL, global_size_kelner2, local_size_kelner2, 0, NULL, &kernel_event);
+            if (err < 0) {
+                ERROR("in BigFactors in clEnqueueNDRangeKernel an error occured: err = " << err);
+            }
+
+            /* Wait for kernel execution to complete */
+            err = clWaitForEvents(1, &kernel_event);
+            if (err < 0) {
+                ERROR("Couldn't wait for events in kernel2: err = " << err);
+            }
+
+
 
             clReleaseEvent(kernel_event);
         }
