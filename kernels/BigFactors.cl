@@ -10,6 +10,7 @@ __kernel void BigFactors(__global float* BigFactors, __global unsigned char* img
     int y = get_global_id(1);
 
 	int size = get_local_size(0);
+	int n = x / size;
 
 	bool shouldWork = true;
 
@@ -18,13 +19,15 @@ __kernel void BigFactors(__global float* BigFactors, __global unsigned char* img
 		 shouldWork = false;
 	}
 	
-	float basis = cos( (M_PI_F * ComponentX * x) / (float) img_W) * cos( (M_PI_F * ComponentY * y) / (float) img_H);
+	if (shouldWork) 
+	{
+		float basis = cos( (M_PI_F * ComponentX * x) / (float) img_W) * cos( (M_PI_F * ComponentY * y) / (float) img_H);
 	
-	BigFactors[3 * (img_W * y + x) + 0] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 0]);
-	BigFactors[3 * (img_W * y + x) + 1] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 1]);
-	BigFactors[3 * (img_W * y + x) + 2] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 2]);
+		BigFactors[3 * (img_W * y + x) + 0] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 0]);
+		BigFactors[3 * (img_W * y + x) + 1] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 1]);
+		BigFactors[3 * (img_W * y + x) + 2] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 2]);
+	}
 	
-	int n = x / size;
 	
 	//printf("czekam przy barierze \n");
 	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
@@ -66,6 +69,20 @@ __kernel void BigFactors(__global float* BigFactors, __global unsigned char* img
 		}
 	}
 	
+	//barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+	//if (x == 0 && shouldWork)
+	//{
+	//	int left = img_W / size;
+	//
+	//	for (int i = 0; i < left; i++)
+	//	{
+	//		BigFactors[3 * (y * img_W) + 0] += BigFactors[3 * (y * img_W + (i + 1) * size) + 0];
+	//		BigFactors[3 * (y * img_W) + 1] += BigFactors[3 * (y * img_W + (i + 1) * size) + 1];
+	//		BigFactors[3 * (y * img_W) + 2] += BigFactors[3 * (y * img_W + (i + 1) * size) + 2];
+	//	}
+	//}
+
 	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
 	if (x != 0)
