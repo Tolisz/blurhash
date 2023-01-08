@@ -83,14 +83,26 @@ __kernel void BigFactors(__global float* BigFactors, __global unsigned char* img
 	//	}
 	//}
 
-	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+	//barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
-	if (x != 0)
-	{
-		return;
-	}
+	//if (x != 0)
+	//{
+	//	return;
+	//}
 
-	printf("%.10f\n", BigFactors[3 * (y * img_W + x) + 0]);
+	//if (x == 0)
+	//{
+	//	int left = img_W / size;
+	//
+	//	for (int i = 0; i < left; i++)
+	//	{
+	//		BigFactors[3 * (y * img_W) + 0] += BigFactors[3 * (y * img_W + (i + 1) * size) + 0];
+	//		BigFactors[3 * (y * img_W) + 1] += BigFactors[3 * (y * img_W + (i + 1) * size) + 1];
+	//		BigFactors[3 * (y * img_W) + 2] += BigFactors[3 * (y * img_W + (i + 1) * size) + 2];
+	//	}
+	//
+	//	printf("%.10f\n", BigFactors[3 * (y * img_W + x) + 0]);
+	//}
 }
 
 float sRGBToLinear(int value) 
@@ -100,54 +112,53 @@ float sRGBToLinear(int value)
 	else return pow((v + 0.055f) / 1.055f, 2.4f);
 }
 
-
 __kernel void sumVertically(__global float* BigFactors, int img_W, int img_H, int ComponentX, int ComponentY)
 {
-	int x = get_global_id(0);
     int y = get_global_id(1);
 
 	int size = get_local_size(1);
+	int n = y / size;
 
-	float normalisation = (ComponentX == 0 && ComponentY == 0) ? 1.0f : 2.0f;
-	float scale = normalisation / (float)(img_W * img_H);
-
-	if (y == 0)
+	bool shouldWork = true;
+	if (y >= img_H)
 	{
-		printf("BigFactors[0][0] = %f\n", BigFactors[3 * (y * img_W + x) + 0] );
+		 shouldWork = false;
+	}
+
+	if (shouldWork)
+	{
+		int left = img_W / size;
+		for (int i = 0; i < left; i++)
+		{
+			BigFactors[3 * (y * img_W) + 0] += BigFactors[3 * (y * img_W + (i + 1) * size) + 0];
+			BigFactors[3 * (y * img_W) + 1] += BigFactors[3 * (y * img_W + (i + 1) * size) + 1];
+			BigFactors[3 * (y * img_W) + 2] += BigFactors[3 * (y * img_W + (i + 1) * size) + 2];
+		}
+
+		//printf("%.10f\n", BigFactors[3 * (y * img_W) + 0]);
 	}
 
 	for (int d = 1; d < size; d *= 2)
 	{
-		mem_fence(CLK_GLOBAL_MEM_FENCE);
-
-		if ( y % (2 * d) != 0 || y + d >= img_H)
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+	
+		if (shouldWork)
 		{
-			if (y == 0)
+			if ( y % (2 * d) != 0 || y + d >= img_H || y + d >= (n+1) * size)
 			{
-				printf("Oj kurwa niedobrze\n");
+				continue;
 			}
-			return;
-		}
-
-		BigFactors[3 * (y * img_W + x) + 0] += BigFactors[3 * ((y + d) * img_W + x) + 0];
-		BigFactors[3 * (y * img_W + x) + 1] += BigFactors[3 * ((y + d) * img_W + x) + 1];
-		BigFactors[3 * (y * img_W + x) + 2] += BigFactors[3 * ((y + d) * img_W + x) + 2];
-	}
-
-	if (y == 0)
-	{
-		int left = img_H / size;
-
-		for (int i = 0; i < left; i++)
-		{
-			BigFactors[3 * (y * img_W + x) + 0] += BigFactors[3 * ((y + (i+1) * size) * img_W + x) + 0];
-			BigFactors[3 * (y * img_W + x) + 1] += BigFactors[3 * ((y + (i+1) * size) * img_W + x) + 1];
-			BigFactors[3 * (y * img_W + x) + 2] += BigFactors[3 * ((y + (i+1) * size) * img_W + x) + 2];
+	
+			BigFactors[3 * (y * img_W) + 0] += BigFactors[3 * ((y + d) * img_W) + 0];
+			BigFactors[3 * (y * img_W) + 1] += BigFactors[3 * ((y + d) * img_W) + 1];
+			BigFactors[3 * (y * img_W) + 2] += BigFactors[3 * ((y + d) * img_W) + 2];
 		}
 	}
 
+
 	if (y == 0)
 	{
-		printf("Koniec BigFactors[0][0] = %f\n", scale * BigFactors[3 * (y * img_W + x) + 1] );
+		printf("%.10f\n", BigFactors[3 * (y * img_W) + 0]);
 	}
+
 }
