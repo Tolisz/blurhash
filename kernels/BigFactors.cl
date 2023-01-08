@@ -156,8 +156,8 @@ __kernel void sumVertically(__global float* BigFactors, int img_W, int img_H, in
 	}
 
 
-	if (y == 0)
-	{
-		printf("%.10f\n", BigFactors[3 * (y * img_W) + 0]);
-	}
+	//if (y == 0)
+	//{
+	//	printf("%.10f\n", BigFactors[3 * (y * img_W) + 0]);
+	//}
 }

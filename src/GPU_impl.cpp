@@ -2,11 +2,15 @@
 
 #include "error.h"
 #include "utils.h"
+
 #include <iostream>
 #include <cmath>
 
+
 void computeGPU(int xComponents, int yComponents, int width, int height, unsigned char* img_data)
 {
+    std::cout << "Version [CPU] \n-----------------\n\n";
+
     /// ---------------------------------------------------
     /// ---------------------------------------------------
     ///
@@ -138,14 +142,14 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     local_size_kelner2[1] = maxWorkGroupSize;
 
 
-    for (int y = 3; y < 4/*yComponents*/; y++)
+    for (int y = 0; y < yComponents; y++)
     {
-        for (int x = 4; x < 5/*xComponents*/; x++)
+        for (int x = 0; x < xComponents; x++)
         {
             set_argument(kernel, 6, sizeof(int), &x);
             set_argument(kernel, 7, sizeof(int), &y);
 
-            std::cout << "x = " << x << "; y = " << y << std::endl;
+            //std::cout << "x = " << x << "; y = " << y << std::endl;
 
             // execute kelner
             cl_event kernel_event;
@@ -185,6 +189,8 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
 
             //std::cout << BigFactors[0] << std::endl;
             
+            // MUSIMY TUTAJ JESZCZE ZSUMOWAĆ DLA ZDJĘĆ O WYSOKOŚCI > maxWorkGroupSize
+
             float normalisation = (x == 0 && y == 0) ? 1 : 2;
             float scale = normalisation / (img_W * img_H);
 
@@ -195,20 +201,103 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     }
 
 
-    for (int y = 0; y < yComponents; y++)
+    //for (int y = 0; y < yComponents; y++)
+    //{
+    //    std::cout << "y = " << y << std::endl;
+
+    //    for (int x = 0; x < xComponents; x++)
+    //    {
+    //        std::cout << "[" << factors[3 * (y * yComponents + x) + 0] << ", ";
+    //        std::cout << factors[3 * (y * yComponents + x) + 1] << ", ";
+    //        std::cout << factors[3 * (y * yComponents + x) + 2] << "] \n";
+    //    }
+
+    //    std::cout << "\n";
+    //}
+
+    char buffer[2 + 4 + (9 * 9 - 1) * 2 + 1];
+
+    char characters[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~";
+
+    // lambdy
+    auto encode_int = [&characters](int value, int length, char* destination) -> char*
     {
-        for (int x = 0; x < xComponents; x++)
-        {
-            std::cout << "[" << factors[3 * (y * yComponents + x) + 0] << ", ";
-            std::cout << factors[3 * (y * yComponents + x) + 1] << ", ";
-            std::cout << factors[3 * (y * yComponents + x) + 2] << "] \n";
+        int divisor = 1;
+        for (int i = 0; i < length - 1; i++) divisor *= 83;
+
+        for (int i = 0; i < length; i++) {
+            int digit = (value / divisor) % 83;
+            divisor /= 83;
+            *destination++ = characters[digit];
+        }
+        return destination;
+    };
+
+    auto linearTosRGB = [](float value) -> int
+    {
+        float v = fmaxf(0, fminf(1, value));
+        if (v <= 0.0031308f) return (int)(v * 12.92f * 255.0f + 0.5f);
+        else return (int)((1.055f * powf(v, 1.0f / 2.4f) - 0.055f) * 255.0f + 0.5f);
+    };
+
+    auto encodeDC = [&linearTosRGB](float r, float g, float b) -> int
+    {
+        int roundedR = linearTosRGB(r);
+        int roundedG = linearTosRGB(g);
+        int roundedB = linearTosRGB(b);
+        return (roundedR << 16) + (roundedG << 8) + roundedB;
+    };
+
+    auto signPow = [](float value, float exp) -> float 
+    {
+        return copysignf(powf(fabsf(value), exp), value);
+    };
+
+
+    auto encodeAC = [&signPow](float r, float g, float b, float maximumValue) -> int
+    {
+        int quantR = (int)fmaxf(0, fminf(18, floorf(signPow(r / maximumValue, 0.5f) * 9.0f + 9.5f)));
+        int quantG = (int)fmaxf(0, fminf(18, floorf(signPow(g / maximumValue, 0.5f) * 9.0f + 9.5f)));
+        int quantB = (int)fmaxf(0, fminf(18, floorf(signPow(b / maximumValue, 0.5f) * 9.0f + 9.5f)));
+
+        return quantR * 19 * 19 + quantG * 19 + quantB;
+    };
+
+    // obliczenia
+
+    float* dc = factors;
+    float* ac = dc + 3;
+    int acCount = xComponents * yComponents - 1;
+    char* ptr = buffer;
+
+    int sizeFlag = (xComponents - 1) + (yComponents - 1) * 9;
+    ptr = encode_int(sizeFlag, 1, ptr);
+
+    float maximumValue;
+    if (acCount > 0) {
+        float actualMaximumValue = 0;
+        for (int i = 0; i < acCount * 3; i++) {
+            actualMaximumValue = fmaxf(fabsf(ac[i]), actualMaximumValue);
         }
 
-        std::cout << "\n";
+        int quantisedMaximumValue = (int)fmaxf(0, fminf(82, floorf(actualMaximumValue * 166.0f - 0.5f)));
+        maximumValue = ((float)quantisedMaximumValue + 1) / 166;
+        ptr = encode_int(quantisedMaximumValue, 1, ptr);
+    }
+    else {
+        maximumValue = 1;
+        ptr = encode_int(0, 1, ptr);
     }
 
+    ptr = encode_int(encodeDC(dc[0], dc[1], dc[2]), 4, ptr);
 
+    for (int i = 0; i < acCount; i++) {
+        ptr = encode_int(encodeAC(ac[i * 3 + 0], ac[i * 3 + 1], ac[i * 3 + 2], maximumValue), 2, ptr);
+    }
 
+    *ptr = 0;
+
+    std::cout << "hash = " << buffer << std::endl;
 
     free(factors);
 }

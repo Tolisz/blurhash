@@ -27,7 +27,7 @@ int main()
         return -1;
     }
 
-    //computeCPU(xComp, yComp, width, height, img_data, width * 3);
+    computeCPU(xComp, yComp, width, height, img_data, width * 3);
     computeGPU(xComp, yComp, width, height, img_data);
 
 
