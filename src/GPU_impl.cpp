@@ -69,7 +69,7 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
 
     // Table of images of size xComp on yComp
     // 
-    unsigned int sizeBigFactors = xComponents * yComponents * (img_W * img_H * 3);
+    unsigned int sizeBigFactors = img_W * img_H * 3;
     float* BigFactors = new float[sizeBigFactors];
     if (!BigFactors) {
         ERROR("BigFactors table allocation was unsuccessful");
@@ -101,28 +101,38 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     std::cout << "Maximal work-group size = " << maxWorkGroupSize << std::endl;
 
     size_t global_size[2];
-    global_size[0] = xComponents * img_W + (maxWorkGroupSize - (xComponents * img_W) % maxWorkGroupSize);
-    global_size[1] = yComponents * img_H;
+    global_size[0] = img_W + (maxWorkGroupSize - (img_W) % maxWorkGroupSize);
+    global_size[1] = img_H;
 
     size_t local_size[2];
     local_size[0] = maxWorkGroupSize;
     local_size[1] = 1;
 
-    // execute kelner
-    cl_event kernel_event;
+    for (int y = 0; y < yComponents; y++)
+    {
+        for (int x = 0; x < xComponents; x++)
+        {
+            set_argument(kernel, 6, sizeof(int), &x);
+            set_argument(kernel, 7, sizeof(int), &y);
 
+            std::cout << "x = " << x << "; y = " << y << std::endl;
 
+            // execute kelner
+            cl_event kernel_event;
 
-    err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_size, local_size, 0, NULL, &kernel_event);
-    if (err < 0) {
-        ERROR("in BigFactors in clEnqueueNDRangeKernel an error occured: err = " << err);
+            err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_size, local_size, 0, NULL, &kernel_event);
+            if (err < 0) {
+                ERROR("in BigFactors in clEnqueueNDRangeKernel an error occured: err = " << err);
+            }
+
+            /* Wait for kernel execution to complete */
+            err = clWaitForEvents(1, &kernel_event);
+            if (err < 0) {
+                ERROR("Couldn't wait for events in BigFactors: err = " << err);
+            }
+
+            clReleaseEvent(kernel_event);
+        }
     }
 
-    /* Wait for kernel execution to complete */
-    err = clWaitForEvents(1, &kernel_event);
-    if (err < 0) {
-        ERROR("Couldn't wait for events in BigFactors: err = " << err);
-    }
-
-    clReleaseEvent(kernel_event);
 }
