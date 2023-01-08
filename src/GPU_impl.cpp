@@ -114,7 +114,7 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     size_t global_size[2];
     global_size[0] = img_W + (maxWorkGroupSize - (img_W) % maxWorkGroupSize);
     global_size[1] = img_H;
-
+    
     size_t local_size[2];
     local_size[0] = maxWorkGroupSize;
     local_size[1] = 1;
@@ -130,9 +130,9 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     local_size_kelner2[1] = maxWorkGroupSize;
 
 
-    for (int y = 0; y < yComponents; y++)
+    for (int y = 3; y < 4/*yComponents*/; y++)
     {
-        for (int x = 0; x < xComponents; x++)
+        for (int x = 4; x < 5/*xComponents*/; x++)
         {
             set_argument(kernel, 6, sizeof(int), &x);
             set_argument(kernel, 7, sizeof(int), &y);
