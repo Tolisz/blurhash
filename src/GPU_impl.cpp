@@ -63,6 +63,14 @@ void computeGPU(int xComponents, int yComponents, int width, int height, unsigne
 void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& queue,
     int img_W, int img_H, unsigned char* img, int xComponents, int yComponents)
 {
+    float* factors = (float*)malloc(sizeof(float) * xComponents * yComponents * 3);
+    if (!factors)
+    {
+        printf("[%s, %d] Table allocation error \n", __FILE__, __LINE__);
+        exit(-1);
+    }
+    memset(factors, 0, sizeof(float) * xComponents * yComponents * 3);
+
     cl_int err;
 
     cl_program program = create_cl_program(device, context, "kernels/BigFactors.cl");
@@ -167,11 +175,40 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
             if (err < 0) {
                 ERROR("Couldn't wait for events in kernel2: err = " << err);
             }
-
-
-
             clReleaseEvent(kernel_event);
+
+            err = clEnqueueReadBuffer(queue, cl_BigFactors, CL_TRUE, 0, sizeBigFactors * sizeof(float), BigFactors, 0, NULL, NULL);
+            if (err < 0)
+            {
+                ERROR("Couldn't read from cl_BigFactors");
+            }
+
+            //std::cout << BigFactors[0] << std::endl;
+            
+            float normalisation = (x == 0 && y == 0) ? 1 : 2;
+            float scale = normalisation / (img_W * img_H);
+
+            *(factors + (y * yComponents + x) * 3 + 0) = scale * BigFactors[0];
+            *(factors + (y * yComponents + x) * 3 + 1) = scale * BigFactors[1];
+            *(factors + (y * yComponents + x) * 3 + 2) = scale * BigFactors[2];
         }
     }
 
+
+    for (int y = 0; y < yComponents; y++)
+    {
+        for (int x = 0; x < xComponents; x++)
+        {
+            std::cout << "[" << factors[3 * (y * yComponents + x) + 0] << ", ";
+            std::cout << factors[3 * (y * yComponents + x) + 1] << ", ";
+            std::cout << factors[3 * (y * yComponents + x) + 2] << "] \n";
+        }
+
+        std::cout << "\n";
+    }
+
+
+
+
+    free(factors);
 }
