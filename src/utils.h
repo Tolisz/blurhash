@@ -1,5 +1,6 @@
 #pragma once
 
+#define CL_TARGET_OPENCL_VERSION 220
 #include <CL/cl.h>
 
 char* read_file(const char* filename, size_t* size);

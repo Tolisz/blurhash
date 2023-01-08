@@ -32,7 +32,7 @@ const char *blurHashForPixels(int xComponents, int yComponents, int width, int h
 		}
 	}
 
-	float* dc = newFactor; //factors[0][0];
+	float* dc = newFactor;
 	float *ac = dc + 3;
 	int acCount = xComponents * yComponents - 1;
 	char *ptr = buffer;

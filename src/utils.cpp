@@ -1,6 +1,6 @@
 ﻿#include "utils.h"
 
-#include <iostream>
+#include "error.h"
 
 char* read_file(const char* filename, size_t* size)
 {
@@ -8,10 +8,10 @@ char* read_file(const char* filename, size_t* size)
     char* buffer;
 
     /* Read program file and place content into buffer */
-    handle = fopen(filename, "rb");
+    //handle = fopen(filename, "rb");
+    fopen_s(&handle, filename, "rb");
     if (handle == NULL) {
-        perror("Couldn't find the file");
-        exit(1);
+        ERROR("Couldn't find the file");
     }
     fseek(handle, 0, SEEK_END);
     *size = (size_t)ftell(handle);
@@ -35,26 +35,25 @@ cl_program create_cl_program(cl_device_id& device, cl_context& context,
 
     program_buffer = read_file(program_file, &program_size);
     program = clCreateProgramWithSource(context, 1, (const char**)&program_buffer, &program_size, &err);
-    if (err < 0)
-    {
-        perror("Couldn't create the program");
-        std::cout << "Couldn't create the program from file" << program_file << ": err = " << err << std::endl;
-        exit(1);
+    if (err < 0) {
+        ERROR("Couldn't create the program from file" << program_file << ": err = " << err);
     }
 
     free(program_buffer);
 
     err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-    if (err < 0) {
+    
+    printf("\n----------------------------------------------------------------------------\n\ [%s] Errors and Warnings \n----------------------------------------------------------------------------\n\n", program_file);
 
-        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-        program_log = (char*)malloc(log_size + 1);
-        program_log[log_size] = '\0';
-        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size + 1, program_log, NULL);
-        printf("%s\n", program_log);
-        free(program_log);
-        exit(1);
-    }
+    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+    program_log = (char*)malloc(log_size + 1);
+    program_log[log_size] = '\0';
+    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size + 1, program_log, NULL);
+    printf("%s\n", program_log);
+    free(program_log);
+    //exit(1);
+
+    printf("\n----------------------------------------------------------------------------\n\n", program_file);
 
     return program;
 }
@@ -67,9 +66,8 @@ cl_kernel create_cl_kelner(cl_program& program,
     cl_kernel kernel;
     kernel = clCreateKernel(program, kelner_name, &err);
     if (err < 0) {
-        std::cout << "Coudn't create a kelner for " << kelner_name << ": err = " << err << std::endl;
-        exit(1);
-    };
+        ERROR("Coudn't create a kelner for " << kelner_name << ": err = " << err); 
+    }
 
     return kernel;
 }
@@ -80,10 +78,8 @@ cl_mem create_buffer(cl_context context, cl_mem_flags flags, size_t size, void* 
 
     cl_mem buffor;
     buffor = clCreateBuffer(context, flags, size, host_ptr, &err);
-    if (err)
-    {
-        std::cout << "Coudn't create a buffor for a cl_BigFactors on GPU: err = " << err << std::endl;
-        exit(1);
+    if (err) {
+        ERROR("Coudn't create a buffor for a cl_BigFactors on GPU: err = " << err);
     }
 
     return buffor;
@@ -95,14 +91,8 @@ void set_argument(cl_kernel kernel, cl_uint arg_index, size_t arg_size, const vo
 
     err = clSetKernelArg(kernel, arg_index, arg_size, arg_value);
     if (err < 0) {
-        std::cout << "Couldn't set the kernel " << arg_index << " argument: err = " << err << std::endl;
-
         char kernel_name[32];
-        if (clGetKernelInfo(kernel, CL_KERNEL_FUNCTION_NAME, sizeof(kernel_name), kernel_name, NULL) == CL_SUCCESS)
-            std::cout << "The kernel name " << kernel_name << std::endl;
-        else 
-            std::cout << "Coudln't take kelner name" << std::endl;
-
-        exit(1);
+        clGetKernelInfo(kernel, CL_KERNEL_FUNCTION_NAME, sizeof(kernel_name), kernel_name, NULL);
+        ERROR("Couldn't set the kernel " << arg_index << " argument: err = " << err << "Kelner name: " << kernel_name);
     }
 }

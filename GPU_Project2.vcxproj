@@ -189,7 +189,6 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\BigFactors.cpp" />
     <ClCompile Include="src\blurhash\encode.cpp" />
     <ClCompile Include="src\CPU_impl.cpp" />
     <ClCompile Include="src\GPU_impl.cpp" />
@@ -197,7 +196,7 @@
     <ClCompile Include="src\utils.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\BigFactors.h" />
+    <ClInclude Include="src\error.h" />
     <ClInclude Include="src\blurhash\common.h" />
     <ClInclude Include="src\blurhash\encode.h" />
     <ClInclude Include="src\CPU_impl.h" />
