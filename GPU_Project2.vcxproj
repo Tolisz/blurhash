@@ -205,7 +205,7 @@
     <ClInclude Include="src\utils.h" />
   </ItemGroup>
   <ItemGroup>
-    <Intel_OpenCL_Build_Rules Include="kernels\BigFactors.cl">
+    <Intel_OpenCL_Build_Rules Include="kernels\blurhash.cl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>

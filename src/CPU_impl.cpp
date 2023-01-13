@@ -9,7 +9,7 @@ using namespace std::chrono;
 
 void computeCPU(int xComponents, int yComponents, int width, int height, unsigned char* rgb, size_t bytesPerRow)
 {
-	std::cout << "Version [CPU] \n-----------------\n\n";
+	std::cout << "\n-----------------\n Version [CPU] \n-----------------\n\n";
 
 	auto start = high_resolution_clock::now();
 

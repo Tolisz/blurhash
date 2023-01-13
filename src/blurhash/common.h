@@ -23,4 +23,34 @@ static inline float signPow(float value, float exp) {
 	return copysignf(powf(fabsf(value), exp), value);
 }
 
+static int encodeDC(float r, float g, float b)
+{
+	int roundedR = linearTosRGB(r);
+	int roundedG = linearTosRGB(g);
+	int roundedB = linearTosRGB(b);
+	return (roundedR << 16) + (roundedG << 8) + roundedB;
+}
+
+static int encodeAC(float r, float g, float b, float maximumValue) {
+	int quantR = (int)fmaxf(0, fminf(18, floorf(signPow(r / maximumValue, 0.5f) * 9.0f + 9.5f)));
+	int quantG = (int)fmaxf(0, fminf(18, floorf(signPow(g / maximumValue, 0.5f) * 9.0f + 9.5f)));
+	int quantB = (int)fmaxf(0, fminf(18, floorf(signPow(b / maximumValue, 0.5f) * 9.0f + 9.5f)));
+
+	return quantR * 19 * 19 + quantG * 19 + quantB;
+}
+
+static char characters[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~";
+
+static char* encode_int(int value, int length, char* destination) {
+	int divisor = 1;
+	for (int i = 0; i < length - 1; i++) divisor *= 83;
+
+	for (int i = 0; i < length; i++) {
+		int digit = (value / divisor) % 83;
+		divisor /= 83;
+		*destination++ = characters[digit];
+	}
+	return destination;
+}
+
 #endif

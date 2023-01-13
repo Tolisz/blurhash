@@ -55,7 +55,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Intel_OpenCL_Build_Rules Include="kernels\BigFactors.cl">
+    <Intel_OpenCL_Build_Rules Include="kernels\blurhash.cl">
       <Filter>OpenCL Files</Filter>
     </Intel_OpenCL_Build_Rules>
   </ItemGroup>

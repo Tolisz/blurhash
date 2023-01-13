@@ -2,14 +2,19 @@
 
 #include "error.h"
 #include "utils.h"
+#include "blurhash/common.h"
 
 #include <iostream>
 #include <cmath>
 
+#include <chrono>
+using namespace std::chrono;
+
+
 
 void computeGPU(int xComponents, int yComponents, int width, int height, unsigned char* img_data)
 {
-    std::cout << "Version [CPU] \n-----------------\n\n";
+    std::cout << "\n-----------------\n\n Version [GPU] \n-----------------\n\n";
 
     /// ---------------------------------------------------
     /// ---------------------------------------------------
@@ -60,13 +65,22 @@ void computeGPU(int xComponents, int yComponents, int width, int height, unsigne
         ERROR("Couldn't create a command queue");
     };
 
-
+    auto start = high_resolution_clock::now();
+    
     BigFactors(device, context, queue, width, height, img_data, xComponents, yComponents);
+    
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<microseconds>(stop - start);
+
+    std::cout << "\nTime = " << duration.count() << "\n\n";
 }
 
 void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& queue,
     int img_W, int img_H, unsigned char* img, int xComponents, int yComponents)
 {
+    // Tablica factors do przychowywania wyników działania kelnerów
+    // ------------------------------------------------------------
+
     float* factors = (float*)malloc(sizeof(float) * xComponents * yComponents * 3);
     if (!factors)
     {
@@ -75,86 +89,91 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     }
     memset(factors, 0, sizeof(float) * xComponents * yComponents * 3);
 
+
+    // Tworzenie programu oraz kerneli
+    // -------------------------------
+
     cl_int err;
+    cl_program program = create_cl_program(device, context, "kernels/blurhash.cl");
 
-    cl_program program = create_cl_program(device, context, "kernels/BigFactors.cl");
-
-    // Table of images of size xComp on yComp
-    // 
-    unsigned int sizeBigFactors = img_W * img_H * 3;
-    float* BigFactors = new float[sizeBigFactors];
-    if (!BigFactors) {
-        ERROR("BigFactors table allocation was unsuccessful");
-    }
-
-    // Memory creation on GPU
-    cl_mem cl_BigFactors = create_buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(float) * sizeBigFactors, BigFactors);
-    cl_mem cl_img = create_buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(char) * img_W * img_H * 3, img);
-
-    // kelner creation
-    cl_kernel kernel = create_cl_kelner(program, "BigFactors");
-
-    // set kelner arguments
-    set_argument(kernel, 0, sizeof(cl_mem), &cl_BigFactors);
-    set_argument(kernel, 1, sizeof(cl_mem), &cl_img);
-
-    set_argument(kernel, 2, sizeof(int), &img_W);
-    set_argument(kernel, 3, sizeof(int), &img_H);
-    set_argument(kernel, 4, sizeof(int), &xComponents);
-    set_argument(kernel, 5, sizeof(int), &yComponents);
-
-
-    // kelner 2 
-    cl_kernel kernel2 = create_cl_kelner(program, "sumVertically");
-
-    // set kelner 2 arguments
-    set_argument(kernel2, 0, sizeof(cl_mem), &cl_BigFactors);
-    set_argument(kernel2, 1, sizeof(int), &img_W);
-    set_argument(kernel2, 2, sizeof(int), &img_H);
+    cl_kernel kernel_rows = create_cl_kelner(program, "factors_rows");
+    cl_kernel kernel_column = create_cl_kelner(program, "factors_column");
 
 
     // Maksymalna liczba wątków które mogą być w jednym work-group (CUDA: w jednym blocku)
-    // 
-    size_t maxWorkGroupSize;
-    clGetKernelWorkGroupInfo(kernel, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &maxWorkGroupSize, NULL);
-    //size_t dimSize = (size_t)std::sqrt((double)maxWorkGroupSize);
+    // na danym urządzeniu
+    // -----------------------------------------------------------------------------------
+
+    size_t max_work_group_size;
+    clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &max_work_group_size, NULL);
+    std::cout << "Maximal work-group size = " << max_work_group_size << std::endl;
+
+    // Tworzenie tablicy do przechowywania wyników pośrednich
+    // ------------------------------------------------------
+
+    unsigned int sizeBigFactors = img_W * img_H * 3;
+    float* BigFactors = new float[sizeBigFactors];
+    if (!BigFactors) 
+    {
+        ERROR("BigFactors table allocation was unsuccessful");
+    }
+
+
+    // Alokacja pamięci na GPU
+    // -----------------------
+
+    cl_mem cl_BigFactors = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * sizeBigFactors, NULL);
+    cl_mem cl_img = create_buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(char) * img_W * img_H * 3, img);
+
+    // Ustawienie parametrów kerneli
+    // -----------------------------
+
+    set_argument(kernel_rows, 0, sizeof(cl_mem), &cl_BigFactors);
+    set_argument(kernel_rows, 1, sizeof(cl_mem), &cl_img);
+    set_argument(kernel_rows, 2, sizeof(int), &img_W);
+    set_argument(kernel_rows, 3, sizeof(int), &img_H);
+    set_argument(kernel_rows, 4, sizeof(int), &xComponents);
+    set_argument(kernel_rows, 5, sizeof(int), &yComponents);
+
+    set_argument(kernel_column, 0, sizeof(cl_mem), &cl_BigFactors);
+    set_argument(kernel_column, 1, sizeof(int), &img_W);
+    set_argument(kernel_column, 2, sizeof(int), &img_H);
+
+
+    // Ustawienie liczby wątków oraz rozmiaru pojedynczego work-group (CUDA: rozmiaru bloku)
+    // -------------------------------------------------------------------------------------
+
+    size_t rows_global_size[2];
+    rows_global_size[0] = img_W + (max_work_group_size - (img_W) % max_work_group_size);
+    rows_global_size[1] = img_H;
     
-    std::cout << "Maximal work-group size = " << maxWorkGroupSize << std::endl;
+    size_t rows_local_size[2];
+    rows_local_size[0] = max_work_group_size;
+    rows_local_size[1] = 1;
 
 
+    size_t column_global_size[2];
+    column_global_size[0] = 1;
+    column_global_size[1] = img_H + (max_work_group_size - (img_H) % max_work_group_size);
 
-    size_t global_size[2];
-    global_size[0] = img_W + (maxWorkGroupSize - (img_W) % maxWorkGroupSize);
-    global_size[1] = img_H;
-    
-    size_t local_size[2];
-    local_size[0] = maxWorkGroupSize;
-    local_size[1] = 1;
-
+    size_t column_local_size[2];
+    column_local_size[0] = 1;
+    column_local_size[1] = max_work_group_size;
 
 
-    size_t global_size_kelner2[2]; 
-    global_size_kelner2[0] = 1;
-    global_size_kelner2[1] = img_H + (maxWorkGroupSize - (img_H) % maxWorkGroupSize);
-
-    size_t local_size_kelner2[2];
-    local_size_kelner2[0] = 1;
-    local_size_kelner2[1] = maxWorkGroupSize;
-
+    // Pętla po komponentach 
+    // ---------------------
 
     for (int y = 0; y < yComponents; y++)
     {
         for (int x = 0; x < xComponents; x++)
         {
-            set_argument(kernel, 6, sizeof(int), &x);
-            set_argument(kernel, 7, sizeof(int), &y);
+            set_argument(kernel_rows, 6, sizeof(int), &x);
+            set_argument(kernel_rows, 7, sizeof(int), &y);
 
-            //std::cout << "x = " << x << "; y = " << y << std::endl;
-
-            // execute kelner
             cl_event kernel_event;
 
-            err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_size, local_size, 0, NULL, &kernel_event);
+            err = clEnqueueNDRangeKernel(queue, kernel_rows, 2, NULL, rows_global_size, rows_local_size, 0, NULL, &kernel_event);
             if (err < 0) {
                 ERROR("in BigFactors in clEnqueueNDRangeKernel an error occured: err = " << err);
             }
@@ -166,10 +185,10 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
             }
 
 
-            set_argument(kernel2, 3, sizeof(int), &x);
-            set_argument(kernel2, 4, sizeof(int), &y);
+            set_argument(kernel_column, 3, sizeof(int), &x);
+            set_argument(kernel_column, 4, sizeof(int), &y);
 
-            err = clEnqueueNDRangeKernel(queue, kernel2, 2, NULL, global_size_kelner2, local_size_kelner2, 0, NULL, &kernel_event);
+            err = clEnqueueNDRangeKernel(queue, kernel_column, 2, NULL, column_global_size, column_local_size, 0, NULL, &kernel_event);
             if (err < 0) {
                 ERROR("in BigFactors in clEnqueueNDRangeKernel an error occured: err = " << err);
             }
@@ -177,11 +196,11 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
             /* Wait for kernel execution to complete */
             err = clWaitForEvents(1, &kernel_event);
             if (err < 0) {
-                ERROR("Couldn't wait for events in kernel2: err = " << err);
+                ERROR("Couldn't wait for events in kernel_column: err = " << err);
             }
             clReleaseEvent(kernel_event);
 
-            err = clEnqueueReadBuffer(queue, cl_BigFactors, CL_TRUE, 0, sizeBigFactors * sizeof(float), BigFactors, 0, NULL, NULL);
+            err = clEnqueueReadBuffer(queue, cl_BigFactors, CL_TRUE, 0, 3 * sizeof(float), BigFactors, 0, NULL, NULL);
             if (err < 0)
             {
                 ERROR("Couldn't read from cl_BigFactors");
@@ -191,7 +210,8 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
             
             // MUSIMY TUTAJ JESZCZE ZSUMOWAĆ DLA ZDJĘĆ O WYSOKOŚCI > maxWorkGroupSize
 
-            float normalisation = (x == 0 && y == 0) ? 1 : 2;
+            float normalisation = (x == 0 && y == 0) ? 1.0f : 2.0f;
+
             float scale = normalisation / (img_W * img_H);
 
             *(factors + (y * yComponents + x) * 3 + 0) = scale * BigFactors[0];
@@ -216,52 +236,6 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     //}
 
     char buffer[2 + 4 + (9 * 9 - 1) * 2 + 1];
-
-    char characters[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~";
-
-    // lambdy
-    auto encode_int = [&characters](int value, int length, char* destination) -> char*
-    {
-        int divisor = 1;
-        for (int i = 0; i < length - 1; i++) divisor *= 83;
-
-        for (int i = 0; i < length; i++) {
-            int digit = (value / divisor) % 83;
-            divisor /= 83;
-            *destination++ = characters[digit];
-        }
-        return destination;
-    };
-
-    auto linearTosRGB = [](float value) -> int
-    {
-        float v = fmaxf(0, fminf(1, value));
-        if (v <= 0.0031308f) return (int)(v * 12.92f * 255.0f + 0.5f);
-        else return (int)((1.055f * powf(v, 1.0f / 2.4f) - 0.055f) * 255.0f + 0.5f);
-    };
-
-    auto encodeDC = [&linearTosRGB](float r, float g, float b) -> int
-    {
-        int roundedR = linearTosRGB(r);
-        int roundedG = linearTosRGB(g);
-        int roundedB = linearTosRGB(b);
-        return (roundedR << 16) + (roundedG << 8) + roundedB;
-    };
-
-    auto signPow = [](float value, float exp) -> float 
-    {
-        return copysignf(powf(fabsf(value), exp), value);
-    };
-
-
-    auto encodeAC = [&signPow](float r, float g, float b, float maximumValue) -> int
-    {
-        int quantR = (int)fmaxf(0, fminf(18, floorf(signPow(r / maximumValue, 0.5f) * 9.0f + 9.5f)));
-        int quantG = (int)fmaxf(0, fminf(18, floorf(signPow(g / maximumValue, 0.5f) * 9.0f + 9.5f)));
-        int quantB = (int)fmaxf(0, fminf(18, floorf(signPow(b / maximumValue, 0.5f) * 9.0f + 9.5f)));
-
-        return quantR * 19 * 19 + quantG * 19 + quantB;
-    };
 
     // obliczenia
 
@@ -289,6 +263,8 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
         ptr = encode_int(0, 1, ptr);
     }
 
+    printf("dc[0, 1, 2] = [%.10f, %.10f, %.10f]\n", dc[0], dc[1], dc[2]);
+
     ptr = encode_int(encodeDC(dc[0], dc[1], dc[2]), 4, ptr);
 
     for (int i = 0; i < acCount; i++) {
@@ -297,7 +273,12 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
 
     *ptr = 0;
 
-    std::cout << "hash = " << buffer << std::endl;
+
+    // Sprzątanie 
+    // ----------
 
     free(factors);
+   
+
+    std::cout << buffer << std::endl;
 }

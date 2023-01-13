@@ -4,7 +4,7 @@ float sRGBToLinear(int value);
 
 //#define M_PI 3.14159265358979323846
 
-__kernel void BigFactors(__global float* BigFactors, __global unsigned char* img, int img_W, int img_H, int xComponents, int yComponents, int ComponentX, int ComponentY)
+__kernel void factors_rows(__global float* BigFactors, __global unsigned char* img, int img_W, int img_H, int xComponents, int yComponents, int ComponentX, int ComponentY)
 {
 	int x = get_global_id(0);
     int y = get_global_id(1);
@@ -29,9 +29,7 @@ __kernel void BigFactors(__global float* BigFactors, __global unsigned char* img
 	}
 	
 	
-	//printf("czekam przy barierze \n");
 	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
-	//printf("Jestem po barierze\n");
 
 	//if (ComponentX == 4 && ComponentY == 3 && x == 185 && y == 1)
 	//{
@@ -112,7 +110,7 @@ float sRGBToLinear(int value)
 	else return pow((v + 0.055f) / 1.055f, 2.4f);
 }
 
-__kernel void sumVertically(__global float* BigFactors, int img_W, int img_H, int ComponentX, int ComponentY)
+__kernel void factors_column(__global float* BigFactors, int img_W, int img_H, int ComponentX, int ComponentY)
 {
     int y = get_global_id(1);
 
