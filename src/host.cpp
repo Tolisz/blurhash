@@ -20,7 +20,7 @@ int main()
 
     // image loading
     int width, height, nrChannels;
-    unsigned char* img_data = stbi_load("img/nature.jpg", &width, &height, &nrChannels, 3);
+    unsigned char* img_data = stbi_load("img/pioro-large.jpg", &width, &height, &nrChannels, 3);
     if (!img_data)
     {
         std::cout << "Can not read your image file, try to use another one" << std::endl;
