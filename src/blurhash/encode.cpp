@@ -55,8 +55,6 @@ const char *blurHashForPixels(int xComponents, int yComponents, int width, int h
 		ptr = encode_int(0, 1, ptr);
 	}
 
-	printf("dc[0, 1, 2] = [%.10f, %.10f, %.10f]\n", dc[0], dc[1], dc[2]);
-
 	ptr = encode_int(encodeDC(dc[0], dc[1], dc[2]), 4, ptr);
 
 	for(int i = 0; i < acCount; i++) {

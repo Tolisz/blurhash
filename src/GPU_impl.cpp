@@ -111,8 +111,10 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     // Tworzenie tablicy do przechowywania wyników pośrednich
     // ------------------------------------------------------
 
-    unsigned int sizeBigFactors = img_W * img_H * 3;
-    float* BigFactors = new float[sizeBigFactors];
+    size_t left_to_sum = (img_H / max_work_group_size) + 1; 
+    size_t table_size = (img_W * img_H + left_to_sum) * 3;
+
+    float* BigFactors = new float[left_to_sum * 3];
     if (!BigFactors) 
     {
         ERROR("BigFactors table allocation was unsuccessful");
@@ -122,7 +124,7 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     // Alokacja pamięci na GPU
     // -----------------------
 
-    cl_mem cl_BigFactors = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * sizeBigFactors, NULL);
+    cl_mem cl_BigFactors = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * table_size, NULL);
     cl_mem cl_img = create_buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(char) * img_W * img_H * 3, img);
 
     // Ustawienie parametrów kerneli
@@ -211,7 +213,7 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
             // Czytamy informację z bufora na GPU
             // ----------------------------------------------------------------------------
 
-            err = clEnqueueReadBuffer(queue, cl_BigFactors, CL_TRUE, 0, 3 * sizeof(float), BigFactors, 0, NULL, &kernel_event);
+            err = clEnqueueReadBuffer(queue, cl_BigFactors, CL_TRUE, img_H * img_W * 3 * sizeof(float), left_to_sum * 3 * sizeof(float), BigFactors, 0, NULL, &kernel_event);
             if (err < 0)
             {
                 ERROR("Couldn't read from cl_BigFactors");
@@ -225,7 +227,17 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
 
             clReleaseEvent(kernel_event);
             
-            // MUSIMY TUTAJ JESZCZE ZSUMOWAĆ DLA ZDJĘĆ O WYSOKOŚCI > maxWorkGroupSize
+            //printf("[0, 1, 2] = [%f, %f, %f]\n", BigFactors[0], BigFactors[1], BigFactors[2]);
+            //printf("[ ,  ,  ] = [%f, %f, %f]\n", BigFactors[table_size - 3], BigFactors[table_size - 2], BigFactors[table_size - 1]);
+
+            float r = 0;
+            
+            for (int i = 1; i < left_to_sum; i++)
+            {
+                BigFactors[0] += BigFactors[i * 3 + 0];
+                BigFactors[1] += BigFactors[i * 3 + 1];
+                BigFactors[2] += BigFactors[i * 3 + 2];
+            }
 
             float normalisation = (x == 0 && y == 0) ? 1.0f : 2.0f;
 
@@ -281,7 +293,7 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
         ptr = encode_int(0, 1, ptr);
     }
 
-    printf("dc[0, 1, 2] = [%.10f, %.10f, %.10f]\n", dc[0], dc[1], dc[2]);
+    //printf("dc[0, 1, 2] = [%.10f, %.10f, %.10f]\n", dc[0], dc[1], dc[2]);
 
     ptr = encode_int(encodeDC(dc[0], dc[1], dc[2]), 4, ptr);
 
