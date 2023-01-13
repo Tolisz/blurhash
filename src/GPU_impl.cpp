@@ -168,45 +168,62 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     {
         for (int x = 0; x < xComponents; x++)
         {
+            cl_event kernel_event;
+
+            // Uruchamiamy pierwszy kernel, w którym liczymy sumy w poszczególnych rzędach
+            // ----------------------------------------------------------------------------
+
             set_argument(kernel_rows, 6, sizeof(int), &x);
             set_argument(kernel_rows, 7, sizeof(int), &y);
 
-            cl_event kernel_event;
-
             err = clEnqueueNDRangeKernel(queue, kernel_rows, 2, NULL, rows_global_size, rows_local_size, 0, NULL, &kernel_event);
-            if (err < 0) {
-                ERROR("in BigFactors in clEnqueueNDRangeKernel an error occured: err = " << err);
+            if (err < 0) 
+            {
+                ERROR("in kernel_rows in clEnqueueNDRangeKernel an error occured: err = " << err << "\n");
             }
 
-            /* Wait for kernel execution to complete */
             err = clWaitForEvents(1, &kernel_event);
-            if (err < 0) {
-                ERROR("Couldn't wait for events in BigFactors: err = " << err);
+            if (err < 0) 
+            {
+                ERROR("Couldn't wait for events in BigFactors: err = " << err << "\n");
             }
 
+
+            // Uruchamiamy drugi kernel, w którym liczymy sumę w pierwszej kolumnie
+            // ----------------------------------------------------------------------------
 
             set_argument(kernel_column, 3, sizeof(int), &x);
             set_argument(kernel_column, 4, sizeof(int), &y);
 
             err = clEnqueueNDRangeKernel(queue, kernel_column, 2, NULL, column_global_size, column_local_size, 0, NULL, &kernel_event);
-            if (err < 0) {
+            if (err < 0) 
+            {
                 ERROR("in BigFactors in clEnqueueNDRangeKernel an error occured: err = " << err);
             }
 
-            /* Wait for kernel execution to complete */
             err = clWaitForEvents(1, &kernel_event);
-            if (err < 0) {
+            if (err < 0) 
+            {
                 ERROR("Couldn't wait for events in kernel_column: err = " << err);
             }
-            clReleaseEvent(kernel_event);
+            
 
-            err = clEnqueueReadBuffer(queue, cl_BigFactors, CL_TRUE, 0, 3 * sizeof(float), BigFactors, 0, NULL, NULL);
+            // Czytamy informację z bufora na GPU
+            // ----------------------------------------------------------------------------
+
+            err = clEnqueueReadBuffer(queue, cl_BigFactors, CL_TRUE, 0, 3 * sizeof(float), BigFactors, 0, NULL, &kernel_event);
             if (err < 0)
             {
                 ERROR("Couldn't read from cl_BigFactors");
             }
 
-            //std::cout << BigFactors[0] << std::endl;
+            err = clWaitForEvents(1, &kernel_event);
+            if (err < 0) 
+            {
+                ERROR("Couldn't wait for events in BigFactors: err = " << err);
+            }
+
+            clReleaseEvent(kernel_event);
             
             // MUSIMY TUTAJ JESZCZE ZSUMOWAĆ DLA ZDJĘĆ O WYSOKOŚCI > maxWorkGroupSize
 
@@ -237,7 +254,8 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
 
     char buffer[2 + 4 + (9 * 9 - 1) * 2 + 1];
 
-    // obliczenia
+    // Obliczenie hashu na CPU
+    // -----------------------
 
     float* dc = factors;
     float* ac = dc + 3;

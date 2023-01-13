@@ -21,13 +21,46 @@ __kernel void factors_rows(__global float* BigFactors, __global unsigned char* i
 	
 	if (shouldWork) 
 	{
-		float basis = cos( (M_PI_F * ComponentX * x) / (float) img_W) * cos( (M_PI_F * ComponentY * y) / (float) img_H);
-	
+		float cosValue1 = M_PI_F * (ComponentX * x / (float) img_W);
+		float COS1 = cos(cosValue1);
+
+		float cosValue2 =  M_PI_F * (ComponentY * y / (float) img_H);
+		float COS2 = cos(cosValue2);
+
+		float basis = COS1 * COS2;
+
+		//float basis = cos( M_PI_F * ((float)ComponentX * (float)x) / (float) img_W) * cos( M_PI_F * ((float)ComponentY * (float)y) / (float) img_H);
+		
+		if (ComponentX == 4 && ComponentY == 3 && x == 185 && y == 1)
+		{
+			printf("basis = %.20f\n", basis);
+			//printf("cosValue = %.10f\n", cosValue1);
+			//printf("COS - %.10f\n", COS1);
+			//printf("cosValue2 = %.10f\n", cosValue2);
+			//printf("COS2 - %.10f\n", COS2);
+			//printf("PI = %.20f\n", M_PI_F);
+		}
+
+		int rImag = (int)img[3 * (img_W * y + x) + 0];
+		float sRGB = sRGBToLinear(rImag);
+		float r = (sRGB * basis);
+
 		BigFactors[3 * (img_W * y + x) + 0] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 0]);
 		BigFactors[3 * (img_W * y + x) + 1] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 1]);
 		BigFactors[3 * (img_W * y + x) + 2] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 2]);
+
+		if (ComponentX == 4 && ComponentY == 3 && x == 185 && y == 1)
+		{
+			printf("rImag = %.20f\n", rImag);
+			printf("sRGB = %.20f\n", sRGB);
+			printf("r = %.20f\n", r);
+			printf("test = %.20f", sRGB * basis);
+			//printf("BigFactors = [%.20f, %.20f, %.20f]\n", 
+			//				BigFactors[3 * img_W * y + 3 * x + 0], 
+			//				BigFactors[3 * img_W * y + 3 * x + 1], 
+			//				BigFactors[3 * img_W * y + 3 * x + 2]);
+		}
 	}
-	
 	
 	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
@@ -152,7 +185,6 @@ __kernel void factors_column(__global float* BigFactors, int img_W, int img_H, i
 			BigFactors[3 * (y * img_W) + 2] += BigFactors[3 * ((y + d) * img_W) + 2];
 		}
 	}
-
 
 	//if (y == 0)
 	//{
