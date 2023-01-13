@@ -27,9 +27,10 @@ int main()
         return -1;
     }
 
-    computeCPU(xComp, yComp, width, height, img_data, width * 3);
-    computeGPU(xComp, yComp, width, height, img_data);
+    std::chrono::microseconds cpu_duration = computeCPU(xComp, yComp, width, height, img_data, width * 3);
+    std::chrono::microseconds gpu_duration = computeGPU(xComp, yComp, width, height, img_data);
 
+    std::cout << "SpeedUP = " << cpu_duration.count() / (float) gpu_duration.count() << std::endl;
 
     stbi_image_free(img_data);
 }

@@ -7,12 +7,10 @@
 #include <iostream>
 #include <cmath>
 
-#include <chrono>
 using namespace std::chrono;
 
 
-
-void computeGPU(int xComponents, int yComponents, int width, int height, unsigned char* img_data)
+microseconds computeGPU(int xComponents, int yComponents, int width, int height, unsigned char* img_data)
 {
     std::cout << "\n-----------------\n\n Version [GPU] \n-----------------\n\n";
 
@@ -73,6 +71,8 @@ void computeGPU(int xComponents, int yComponents, int width, int height, unsigne
     auto duration = duration_cast<microseconds>(stop - start);
 
     std::cout << "\nTime = " << duration.count() << "\n\n";
+
+    return duration;
 }
 
 void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& queue,
@@ -256,9 +256,7 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
 
     //    for (int x = 0; x < xComponents; x++)
     //    {
-    //        std::cout << "[" << factors[3 * (y * yComponents + x) + 0] << ", ";
-    //        std::cout << factors[3 * (y * yComponents + x) + 1] << ", ";
-    //        std::cout << factors[3 * (y * yComponents + x) + 2] << "] \n";
+    //        printf("[%.20f, %.20f, %.20f]\n", factors[3 * (y * yComponents + x) + 0], factors[3 * (y * yComponents + x) + 1], factors[3 * (y * yComponents + x) + 2]);
     //    }
 
     //    std::cout << "\n";
