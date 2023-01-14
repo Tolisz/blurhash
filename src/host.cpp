@@ -26,13 +26,10 @@ int main(int argc, char** argv)
     char* image = argv[3];
 
     bool GPUonly = false;
-    if (argc == 5) // && std::strcmp(argv[4], "--GPUonly") == 0
+    if (argc == 5 && std::strcmp(argv[4], "--GPUonly") == 0)
     {   
-        bool GPUonly = true;
-        std::cout << "jestem" << GPUonly;
+        GPUonly = true;
     }
-
-    std::cout << "\n" << GPUonly;
 
     if (xComp < 1 || xComp > 9 || yComp < 1 || yComp > 9)
     {
@@ -52,11 +49,7 @@ int main(int argc, char** argv)
     std::chrono::microseconds cpu_duration;
     std::chrono::microseconds gpu_duration;
 
-    if (!GPUonly)
-    {
-        std::cout << "\n I tu jestem";
-        cpu_duration = computeCPU(xComp, yComp, width, height, img_data, width * 3);
-    }
+    if (!GPUonly) cpu_duration = computeCPU(xComp, yComp, width, height, img_data, width * 3);
     gpu_duration = computeGPU(xComp, yComp, width, height, img_data);
 
     if (!GPUonly) std::cout << "SpeedUP = " << cpu_duration.count() / (float) gpu_duration.count() << std::endl;
