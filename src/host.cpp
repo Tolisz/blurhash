@@ -20,18 +20,17 @@ int main()
 
     // image loading
     int width, height, nrChannels;
-    unsigned char* img_data = stbi_load("img/pioro-large.jpg", &width, &height, &nrChannels, 3);
+    unsigned char* img_data = stbi_load("img/pioro-medium.jpg", &width, &height, &nrChannels, 3);
     if (!img_data)
     {
         std::cout << "Can not read your image file, try to use another one" << std::endl;
         return -1;
     }
 
-    std::chrono::microseconds cpu_duration = computeCPU(xComp, yComp, width, height, img_data, width * 3);
+    //std::chrono::microseconds cpu_duration = computeCPU(xComp, yComp, width, height, img_data, width * 3);
     std::chrono::microseconds gpu_duration = computeGPU(xComp, yComp, width, height, img_data);
 
-    std::cout << "SpeedUP = " << cpu_duration.count() / (float) gpu_duration.count() << std::endl;
+    //std::cout << "SpeedUP = " << cpu_duration.count() / (float) gpu_duration.count() << std::endl;
 
     stbi_image_free(img_data);
 }
-

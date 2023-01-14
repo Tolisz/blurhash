@@ -43,7 +43,7 @@ cl_program create_cl_program(cl_device_id& device, cl_context& context,
 
     err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
     
-    printf("\n----------------------------------------------------------------------------\n\ [%s] Errors and Warnings \n----------------------------------------------------------------------------\n\n", program_file);
+    printf("\n----------------------------------------------------------------------------\n [%s] Errors and Warnings \n----------------------------------------------------------------------------\n\n", program_file);
 
     clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
     program_log = (char*)malloc(log_size + 1);
@@ -53,7 +53,7 @@ cl_program create_cl_program(cl_device_id& device, cl_context& context,
     free(program_log);
     //exit(1);
 
-    printf("\n----------------------------------------------------------------------------\n\n", program_file);
+    printf("\n----------------------------------------------------------------------------\n\n");
 
     return program;
 }

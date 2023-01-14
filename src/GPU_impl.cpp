@@ -9,6 +9,8 @@
 
 using namespace std::chrono;
 
+//#define DEBUG_TABLE
+
 
 microseconds computeGPU(int xComponents, int yComponents, int width, int height, unsigned char* img_data)
 {
@@ -108,10 +110,12 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &max_work_group_size, NULL);
     std::cout << "Maximal work-group size = " << max_work_group_size << std::endl;
 
+
     // Tworzenie tablicy do przechowywania wyników pośrednich
     // ------------------------------------------------------
 
-    size_t left_to_sum = (img_H / max_work_group_size) + 1; 
+    size_t left_to_sum = (size_t)std::ceilf(img_H / (float)max_work_group_size);
+    std::cout << left_to_sum << std::endl;
     size_t table_size = (img_W * img_H + left_to_sum) * 3;
 
     float* BigFactors = new float[left_to_sum * 3];
@@ -194,6 +198,8 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
             // Uruchamiamy drugi kernel, w którym liczymy sumę w pierwszej kolumnie
             // ----------------------------------------------------------------------------
 
+            //std::cout << "\n\nDRUGI KELNER\n\n";
+
             set_argument(kernel_column, 3, sizeof(int), &x);
             set_argument(kernel_column, 4, sizeof(int), &y);
 
@@ -229,38 +235,51 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
             
             //printf("[0, 1, 2] = [%f, %f, %f]\n", BigFactors[0], BigFactors[1], BigFactors[2]);
             //printf("[ ,  ,  ] = [%f, %f, %f]\n", BigFactors[table_size - 3], BigFactors[table_size - 2], BigFactors[table_size - 1]);
-
-            float r = 0;
             
-            for (int i = 1; i < left_to_sum; i++)
+            float r = 0;
+            float g = 0;
+            float b = 0;
+            
+            //std::cout << "Wypisuje na CPU " << std::endl;
+            //
+            //for (int i = 0; i < left_to_sum; i++)
+            //{
+            //    printf("%.20f \n", BigFactors[i * 3 + 0]);
+            //}
+
+            for (size_t i = 0; i < left_to_sum; i++)
             {
-                BigFactors[0] += BigFactors[i * 3 + 0];
-                BigFactors[1] += BigFactors[i * 3 + 1];
-                BigFactors[2] += BigFactors[i * 3 + 2];
+                r += BigFactors[i * 3 + 0];
+                g += BigFactors[i * 3 + 1];
+                b += BigFactors[i * 3 + 2];
             }
+
+            //printf("[r, g, b] = [%.20f, %.20f, %.20f]", r, g, b);
 
             float normalisation = (x == 0 && y == 0) ? 1.0f : 2.0f;
 
             float scale = normalisation / (img_W * img_H);
 
-            *(factors + (y * yComponents + x) * 3 + 0) = scale * BigFactors[0];
-            *(factors + (y * yComponents + x) * 3 + 1) = scale * BigFactors[1];
-            *(factors + (y * yComponents + x) * 3 + 2) = scale * BigFactors[2];
+            *(factors + (y * yComponents + x) * 3 + 0) = scale * r;
+            *(factors + (y * yComponents + x) * 3 + 1) = scale * g;
+            *(factors + (y * yComponents + x) * 3 + 2) = scale * b;
         }
     }
 
 
-    //for (int y = 0; y < yComponents; y++)
-    //{
-    //    std::cout << "y = " << y << std::endl;
+#ifdef DEBUG_TABLE
+    for (int y = 0; y < yComponents; y++)
+    {
+        std::cout << "y = " << y << std::endl;
 
-    //    for (int x = 0; x < xComponents; x++)
-    //    {
-    //        printf("[%.20f, %.20f, %.20f]\n", factors[3 * (y * yComponents + x) + 0], factors[3 * (y * yComponents + x) + 1], factors[3 * (y * yComponents + x) + 2]);
-    //    }
+        for (int x = 0; x < xComponents; x++)
+        {
+            printf("[%.20f, %.20f, %.20f]\n", factors[3 * (y * yComponents + x) + 0], factors[3 * (y * yComponents + x) + 1], factors[3 * (y * yComponents + x) + 2]);
+        }
 
-    //    std::cout << "\n";
-    //}
+        std::cout << "\n";
+    }
+#endif
 
     char buffer[2 + 4 + (9 * 9 - 1) * 2 + 1];
 
