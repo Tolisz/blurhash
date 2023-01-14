@@ -6,11 +6,33 @@
 #include "CPU_impl.h"
 #include "GPU_impl.h"
 
-int main()
+int main(int argc, char** argv)
 {
+    if (argc < 4)
+    {
+        std::cout << "Usage: xComp yComp image\n";
+        std::cout << "\txComp - number from 1 to 9\n";
+        std::cout << "\tyComp - number from 1 to 9\n";
+        std::cout << "\timage - relative path to image\n";
+        std::cout << "\t[Optional] --GPUonly -> Computes hash only on GPU\n";
+
+        return -1;
+    }
+
     // blurhash components number
-    int xComp = 8;
-    int yComp = 8;
+    int xComp = std::atoi(argv[1]);
+    int yComp = std::atoi(argv[2]);
+
+    char* image = argv[3];
+
+    bool GPUonly = false;
+    if (argc == 5) // && std::strcmp(argv[4], "--GPUonly") == 0
+    {   
+        bool GPUonly = true;
+        std::cout << "jestem" << GPUonly;
+    }
+
+    std::cout << "\n" << GPUonly;
 
     if (xComp < 1 || xComp > 9 || yComp < 1 || yComp > 9)
     {
@@ -20,17 +42,24 @@ int main()
 
     // image loading
     int width, height, nrChannels;
-    unsigned char* img_data = stbi_load("img/pioro-medium.jpg", &width, &height, &nrChannels, 3);
+    unsigned char* img_data = stbi_load(image, &width, &height, &nrChannels, 3);
     if (!img_data)
     {
         std::cout << "Can not read your image file, try to use another one" << std::endl;
         return -1;
     }
 
-    //std::chrono::microseconds cpu_duration = computeCPU(xComp, yComp, width, height, img_data, width * 3);
-    std::chrono::microseconds gpu_duration = computeGPU(xComp, yComp, width, height, img_data);
+    std::chrono::microseconds cpu_duration;
+    std::chrono::microseconds gpu_duration;
 
-    //std::cout << "SpeedUP = " << cpu_duration.count() / (float) gpu_duration.count() << std::endl;
+    if (!GPUonly)
+    {
+        std::cout << "\n I tu jestem";
+        cpu_duration = computeCPU(xComp, yComp, width, height, img_data, width * 3);
+    }
+    gpu_duration = computeGPU(xComp, yComp, width, height, img_data);
+
+    if (!GPUonly) std::cout << "SpeedUP = " << cpu_duration.count() / (float) gpu_duration.count() << std::endl;
 
     stbi_image_free(img_data);
 }

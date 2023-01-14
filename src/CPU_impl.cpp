@@ -8,7 +8,7 @@ using namespace std::chrono;
 
 microseconds computeCPU(int xComponents, int yComponents, int width, int height, unsigned char* rgb, size_t bytesPerRow)
 {
-	std::cout << "\n-----------------\n Version [CPU] \n-----------------\n\n";
+	std::cout << "\n-----------------\n Version [CPU] \n-----------------\n";
 
 	auto start = high_resolution_clock::now();
 
@@ -19,7 +19,7 @@ microseconds computeCPU(int xComponents, int yComponents, int width, int height,
 
 	std::cout << hash << std::endl;
 
-	std::cout << "\nTime = " << duration.count() << "\n\n";
+	std::cout << "Time = " << duration.count() << "\n\n";
 
 	return duration;
 }
