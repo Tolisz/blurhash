@@ -21,14 +21,15 @@ const char *blurHashForPixels(int xComponents, int yComponents, int width, int h
 		printf("[%s, %d] Table allocation error \n", __FILE__, __LINE__);
 		exit(-1);
 	}
+	memset(newFactor, 0, sizeof(float) * xComponents * yComponents * 3);
 
 	for(int y = 0; y < yComponents; y++) {
 		for(int x = 0; x < xComponents; x++) {
 			float *factor = multiplyBasisFunction(x, y, width, height, rgb, bytesPerRow);
 
-			*(newFactor + (y * yComponents + x) * 3 + 0) = factor[0];
-			*(newFactor + (y * yComponents + x) * 3 + 1) = factor[1];
-			*(newFactor + (y * yComponents + x) * 3 + 2) = factor[2];
+			*(newFactor + (y * xComponents + x) * 3 + 0) = factor[0];
+			*(newFactor + (y * xComponents + x) * 3 + 1) = factor[1];
+			*(newFactor + (y * xComponents + x) * 3 + 2) = factor[2];
 		}
 	}
 

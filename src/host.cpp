@@ -15,7 +15,7 @@ int main(int argc, char** argv)
         std::cout << "\tyComp - number from 1 to 9\n";
         std::cout << "\timage - relative path to image\n";
         std::cout << "\t[Optional] --GPUonly -> Computes hash only on GPU\n";
-
+    
         return -1;
     }
 

@@ -67,17 +67,18 @@ microseconds computeGPU(int xComponents, int yComponents, int width, int height,
 
     auto start = high_resolution_clock::now();
     
-    BigFactors(device, context, queue, width, height, img_data, xComponents, yComponents);
+    const char* hash = BigFactors(device, context, queue, width, height, img_data, xComponents, yComponents);
     
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<microseconds>(stop - start);
 
+    std::cout << hash;
     std::cout << "\nTime = " << duration.count() << "\n\n";
 
     return duration;
 }
 
-void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& queue,
+const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& queue,
     int img_W, int img_H, unsigned char* img, int xComponents, int yComponents)
 {
     // Tablica factors do przychowywania wyników działania kelnerów
@@ -91,6 +92,12 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     }
     memset(factors, 0, sizeof(float) * xComponents * yComponents * 3);
 
+    //float* factors = new float[xComponents * yComponents * 3];
+    //if (!factors)
+    //{
+    //    printf("[%s, %d] Table allocation error \n", __FILE__, __LINE__);
+    //    exit(-1);
+    //}
 
     // Tworzenie programu oraz kerneli
     // -------------------------------
@@ -245,9 +252,9 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
             float normalisation = (x == 0 && y == 0) ? 1.0f : 2.0f;
             float scale = normalisation / (img_W * img_H);
 
-            *(factors + (y * yComponents + x) * 3 + 0) = scale * r;
-            *(factors + (y * yComponents + x) * 3 + 1) = scale * g;
-            *(factors + (y * yComponents + x) * 3 + 2) = scale * b;
+            *(factors + (y * xComponents + x) * 3 + 0) = scale * r;
+            *(factors + (y * xComponents + x) * 3 + 1) = scale * g;
+            *(factors + (y * xComponents + x) * 3 + 2) = scale * b;
         }
     }
 
@@ -266,26 +273,26 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
     }
 #endif
 
-    char buffer[2 + 4 + (9 * 9 - 1) * 2 + 1];
-
+    static char buffer[2 + 4 + (9 * 9 - 1) * 2 + 1];
+    
     // Obliczenie hashu na CPU
     // -----------------------
-
+    
     float* dc = factors;
     float* ac = dc + 3;
     int acCount = xComponents * yComponents - 1;
     char* ptr = buffer;
-
+    
     int sizeFlag = (xComponents - 1) + (yComponents - 1) * 9;
     ptr = encode_int(sizeFlag, 1, ptr);
-
+    
     float maximumValue;
     if (acCount > 0) {
         float actualMaximumValue = 0;
         for (int i = 0; i < acCount * 3; i++) {
             actualMaximumValue = fmaxf(fabsf(ac[i]), actualMaximumValue);
         }
-
+    
         int quantisedMaximumValue = (int)fmaxf(0, fminf(82, floorf(actualMaximumValue * 166.0f - 0.5f)));
         maximumValue = ((float)quantisedMaximumValue + 1) / 166;
         ptr = encode_int(quantisedMaximumValue, 1, ptr);
@@ -294,23 +301,21 @@ void BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& que
         maximumValue = 1;
         ptr = encode_int(0, 1, ptr);
     }
-
-    //printf("dc[0, 1, 2] = [%.10f, %.10f, %.10f]\n", dc[0], dc[1], dc[2]);
-
+    
     ptr = encode_int(encodeDC(dc[0], dc[1], dc[2]), 4, ptr);
-
+    
     for (int i = 0; i < acCount; i++) {
         ptr = encode_int(encodeAC(ac[i * 3 + 0], ac[i * 3 + 1], ac[i * 3 + 2], maximumValue), 2, ptr);
     }
-
+    
     *ptr = 0;
-
-
+    
+    
     // Sprzątanie 
     // ----------
-
+    
     free(factors);
-   
-
-    std::cout << buffer;
+    
+    return buffer;
+    //std::cout << buffer;
 }
