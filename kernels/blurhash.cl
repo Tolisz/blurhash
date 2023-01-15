@@ -111,10 +111,6 @@ __kernel void factors_column(__global float* R, __global float* G, __global floa
 			result[3 * n + 0] = R[y * img_W];
 			result[3 * n + 1] = G[y * img_W];
 			result[3 * n + 2] = B[y * img_W];
-
-			//R[img_H * img_W + n] = R[y * img_W];
-			//G[img_H * img_W + n] = G[y * img_W];
-			//B[img_H * img_W + n] = B[y * img_W];
 		}
 	}
 

@@ -8,6 +8,7 @@
 
 int main(int argc, char** argv)
 {
+
     if (argc < 4)
     {
         std::cout << "Usage: xComp yComp image\n";

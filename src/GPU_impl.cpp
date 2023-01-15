@@ -121,8 +121,8 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
     // ------------------------------------------------------
 
     size_t left_to_sum = (size_t)std::ceilf(img_H / (float)max_work_group_size);
-    size_t table_size = img_W * img_H;
-
+    size_t table_size = ((size_t)img_W) * ((size_t)img_H);
+    
     float* factor_result = new float[left_to_sum * 3];
     if (!factor_result)
     {
