@@ -75,6 +75,11 @@ microseconds computeGPU(int xComponents, int yComponents, int width, int height,
     std::cout << hash;
     std::cout << "\nTime = " << duration.count() << "\n\n";
 
+    // Sprzątanie
+    clReleaseCommandQueue(queue);
+    clReleaseContext(context);
+    clReleaseDevice(device);
+
     return duration;
 }
 
@@ -92,12 +97,6 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
     }
     memset(factors, 0, sizeof(float) * xComponents * yComponents * 3);
 
-    //float* factors = new float[xComponents * yComponents * 3];
-    //if (!factors)
-    //{
-    //    printf("[%s, %d] Table allocation error \n", __FILE__, __LINE__);
-    //    exit(-1);
-    //}
 
     // Tworzenie programu oraz kerneli
     // -------------------------------
@@ -315,7 +314,13 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
     // ----------
     
     free(factors);
-    
+    free(BigFactors);
+
+    clReleaseProgram(program);
+    clReleaseKernel(kernel_column);
+    clReleaseKernel(kernel_rows);
+    clReleaseMemObject(cl_BigFactors);
+    clReleaseMemObject(cl_img);
+
     return buffer;
-    //std::cout << buffer;
 }
