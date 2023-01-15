@@ -8,7 +8,7 @@ float sRGBToLinear(int value);
 __kernel void factors_rows(__global float* R, __global float* G, __global float* B, __global unsigned char* img, int img_W, int img_H, int xComponents, int yComponents, int ComponentX, int ComponentY)
 {
 	int x = get_global_id(0);
-    int y = get_global_id(1);
+	int y = get_global_id(1);
 
 	int size = get_local_size(0);
 	int n = x / size;
@@ -30,6 +30,9 @@ __kernel void factors_rows(__global float* R, __global float* G, __global float*
 	}
 	
 	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+	// Compute sum in each row in each work-group (block)
+	// --------------------------------------------------
 
 	for (int d = 1; d < size; d *= 2)
 	{
@@ -70,6 +73,10 @@ __kernel void factors_column(__global float* R, __global float* G, __global floa
 		 shouldWork = false;
 	}
 	
+	// Compute sum of the remaining elements in each row
+	// and write it to the first column
+	// --------------------------------------------------
+
 	int left = ceil(img_W / (float) size);
 	for (int i = 1; i < left; i++)
 	{
@@ -84,6 +91,9 @@ __kernel void factors_column(__global float* R, __global float* G, __global floa
 	}
 
 	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+	// Compute sum in first column in each work-group (block)
+	// -------------------------------------------------------
 
 	for (int d = 1; d < size; d *= 2)
 	{
@@ -103,6 +113,10 @@ __kernel void factors_column(__global float* R, __global float* G, __global floa
 	}
 	
 	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+	// Write result of sum in each work-group to the 
+	// additional table
+	// -------------------------------------------------------
 
 	if (shouldWork)
 	{

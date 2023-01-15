@@ -8,6 +8,8 @@
 
 int main(int argc, char** argv)
 {
+    // Reed parametrs from console
+    // ---------------------------
 
     if (argc < 4)
     {
@@ -49,6 +51,9 @@ int main(int argc, char** argv)
 
     std::chrono::microseconds cpu_duration;
     std::chrono::microseconds gpu_duration;
+
+    // hash computing
+    // --------------
 
     if (!GPUonly) cpu_duration = computeCPU(xComp, yComp, width, height, img_data, width * 3);
     gpu_duration = computeGPU(xComp, yComp, width, height, img_data);

@@ -75,7 +75,9 @@ microseconds computeGPU(int xComponents, int yComponents, int width, int height,
     std::cout << hash;
     std::cout << "\nTime = " << duration.count() << "\n\n";
 
-    // Sprzątanie
+    // Cleaning
+    // ----------
+
     clReleaseCommandQueue(queue);
     clReleaseContext(context);
     clReleaseDevice(device);
@@ -86,7 +88,7 @@ microseconds computeGPU(int xComponents, int yComponents, int width, int height,
 const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_queue& queue,
     int img_W, int img_H, unsigned char* img, int xComponents, int yComponents)
 {
-    // Tablica factors do przychowywania wyników działania kelnerów
+    // Table factors as in original algorithm
     // ------------------------------------------------------------
 
     float* factors = (float*)malloc(sizeof(float) * xComponents * yComponents * 3);
@@ -98,7 +100,7 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
     memset(factors, 0, sizeof(float) * xComponents * yComponents * 3);
 
 
-    // Tworzenie programu oraz kerneli
+    // Program and kelners creation
     // -------------------------------
 
     cl_int err;
@@ -108,17 +110,20 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
     cl_kernel kernel_column = create_cl_kelner(program, "factors_column");
 
 
-    // Maksymalna liczba wątków które mogą być w jednym work-group (CUDA: w jednym blocku)
+    // Maksymalna liczba wątków w jednym work-group (CUDA: w jednym blocku)
     // na danym urządzeniu
+    // 
+    // Maximal number of threads inside one work-group (CUDA: inside one block) 
+    // on the device
     // -----------------------------------------------------------------------------------
 
     size_t max_work_group_size;
     clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &max_work_group_size, NULL);
-    //std::cout << "Maximal work-group size = " << max_work_group_size << std::endl;
 
 
-    // Tworzenie tablicy do przechowywania wyników pośrednich
-    // ------------------------------------------------------
+    // factor_result contains elements from first table column witch we want to sum up on CPU 
+    // after kelners execution
+    // --------------------------------------------------------------------------------------
 
     size_t left_to_sum = (size_t)std::ceilf(img_H / (float)max_work_group_size);
     size_t table_size = ((size_t)img_W) * ((size_t)img_H);
@@ -129,10 +134,9 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
         ERROR("factor_result table allocation was unsuccessful");
     }
 
-    // Alokacja pamięci na GPU
+    // GPU memory allocation
     // -----------------------
 
-    //cl_mem cl_BigFactors = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * table_size, NULL);
     cl_mem cl_R = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * table_size, NULL);
     cl_mem cl_G = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * table_size, NULL);
     cl_mem cl_B = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * table_size, NULL);
@@ -140,7 +144,7 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
     cl_mem cl_factor_result = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * left_to_sum * 3, NULL);
     cl_mem cl_img = create_buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(char) * img_W * img_H * 3, img);
 
-    // Ustawienie parametrów kerneli
+    // kernels' parametrs setup
     // -----------------------------
 
     set_argument(kernel_rows, 0, sizeof(cl_mem), &cl_R);
@@ -161,6 +165,8 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
 
 
     // Ustawienie liczby wątków oraz rozmiaru pojedynczego work-group (CUDA: rozmiaru bloku)
+    // 
+    // Set up number of work-items (threads) in one work-group (CUDA: block size)
     // -------------------------------------------------------------------------------------
 
     size_t rows_global_size[2];
@@ -181,8 +187,8 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
     column_local_size[1] = max_work_group_size;
 
 
-    // Pętla po komponentach 
-    // ---------------------
+    // loop over components
+    // ------------------------
 
     for (int y = 0; y < yComponents; y++)
     {
@@ -191,6 +197,8 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
             cl_event kernel_event;
 
             // Uruchamiamy pierwszy kernel, w którym liczymy sumy w poszczególnych rzędach
+            // 
+            // Starting first kelner, where we sum elements in each row.
             // ----------------------------------------------------------------------------
 
             set_argument(kernel_rows, 8, sizeof(int), &x);
@@ -210,6 +218,9 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
 
 
             // Uruchamiamy drugi kernel, w którym liczymy sumę w pierwszej kolumnie
+            // 
+            // Starting second kelner, where we sum remaining elements in each row  to first column
+            // and then sum elements in first column. 
             // ----------------------------------------------------------------------------
 
             set_argument(kernel_column, 6, sizeof(int), &x);
@@ -228,7 +239,7 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
             }
             
 
-            // Czytamy informację z bufora na GPU
+            // Reading information from GPU buffor
             // ----------------------------------------------------------------------------
 
             err = clEnqueueReadBuffer(queue, cl_factor_result, CL_TRUE, 0, left_to_sum * 3 * sizeof(float), factor_result, 0, NULL, &kernel_event);
@@ -282,7 +293,7 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
 
     static char buffer[2 + 4 + (9 * 9 - 1) * 2 + 1];
     
-    // Obliczenie hashu na CPU
+    // Compute hash on CPU
     // -----------------------
     
     float* dc = factors;
@@ -318,7 +329,7 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
     *ptr = 0;
     
     
-    // Sprzątanie 
+    // Cleaning
     // ----------
     
     free(factors);
