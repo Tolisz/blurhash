@@ -5,7 +5,7 @@ float sRGBToLinear(int value);
 
 //#define M_PI 3.14159265358979323846
 
-__kernel void factors_rows(__global float* BigFactors, __global unsigned char* img, int img_W, int img_H, int xComponents, int yComponents, int ComponentX, int ComponentY)
+__kernel void factors_rows(__global float* R, __global float* G, __global float* B, __global unsigned char* img, int img_W, int img_H, int xComponents, int yComponents, int ComponentX, int ComponentY)
 {
 	int x = get_global_id(0);
     int y = get_global_id(1);
@@ -24,9 +24,9 @@ __kernel void factors_rows(__global float* BigFactors, __global unsigned char* i
 	{
 		float basis = cos( M_PI_F * ((float)ComponentX * (float)x) / (float) img_W) * cos( M_PI_F * ((float)ComponentY * (float)y) / (float) img_H);
 
-		BigFactors[3 * (img_W * y + x) + 0] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 0]);
-		BigFactors[3 * (img_W * y + x) + 1] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 1]);
-		BigFactors[3 * (img_W * y + x) + 2] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 2]);
+		R[img_W * y + x] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 0]);
+		G[img_W * y + x] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 1]);
+		B[img_W * y + x] = basis * sRGBToLinear((int)img[3 * (img_W * y + x) + 2]);
 	}
 	
 	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
@@ -42,9 +42,9 @@ __kernel void factors_rows(__global float* BigFactors, __global unsigned char* i
 				continue;
 			}
 
-			BigFactors[3 * (y * img_W  + x) + 0] += BigFactors[3 * (y * img_W  + x + d) + 0];
-			BigFactors[3 * (y * img_W  + x) + 1] += BigFactors[3 * (y * img_W  + x + d) + 1];
-			BigFactors[3 * (y * img_W  + x) + 2] += BigFactors[3 * (y * img_W  + x + d) + 2];
+			R[y * img_W  + x] += R[y * img_W  + x + d];
+			G[y * img_W  + x] += G[y * img_W  + x + d];
+			B[y * img_W  + x] += B[y * img_W  + x + d];
 		}
 	}
 
@@ -57,7 +57,7 @@ float sRGBToLinear(int value)
 	else return pow((v + 0.055f) / 1.055f, 2.4f);
 }
 
-__kernel void factors_column(__global float* BigFactors, int img_W, int img_H, int ComponentX, int ComponentY)
+__kernel void factors_column(__global float* R, __global float* G, __global float* B, __global float* result, int img_W, int img_H, int ComponentX, int ComponentY)
 {
     int y = get_global_id(1);
 	
@@ -77,9 +77,9 @@ __kernel void factors_column(__global float* BigFactors, int img_W, int img_H, i
 
 		if (shouldWork)
 		{
-			BigFactors[3 * (y * img_W) + 0] += BigFactors[3 * (y * img_W + i * size) + 0];
-			BigFactors[3 * (y * img_W) + 1] += BigFactors[3 * (y * img_W + i * size) + 1];
-			BigFactors[3 * (y * img_W) + 2] += BigFactors[3 * (y * img_W + i * size) + 2];
+			R[y * img_W] += R[y * img_W + i * size];
+			G[y * img_W] += G[y * img_W + i * size];
+			B[y * img_W] += B[y * img_W + i * size];
 		}
 	}
 
@@ -96,9 +96,9 @@ __kernel void factors_column(__global float* BigFactors, int img_W, int img_H, i
 				continue;
 			}
 	
-			BigFactors[3 * (y * img_W) + 0] += BigFactors[3 * ((y + d) * img_W) + 0];
-			BigFactors[3 * (y * img_W) + 1] += BigFactors[3 * ((y + d) * img_W) + 1];
-			BigFactors[3 * (y * img_W) + 2] += BigFactors[3 * ((y + d) * img_W) + 2];
+			R[y * img_W] += R[(y + d) * img_W];
+			G[y * img_W] += G[(y + d) * img_W];
+			B[y * img_W] += B[(y + d) * img_W];
 		}
 	}
 	
@@ -108,9 +108,13 @@ __kernel void factors_column(__global float* BigFactors, int img_W, int img_H, i
 	{
 		if (y % size == 0)
 		{
-			BigFactors[3 * (img_H * img_W + n) + 0] = BigFactors[3 * (y * img_W) + 0];
-			BigFactors[3 * (img_H * img_W + n) + 1] = BigFactors[3 * (y * img_W) + 1];
-			BigFactors[3 * (img_H * img_W + n) + 2] = BigFactors[3 * (y * img_W) + 2];
+			result[3 * n + 0] = R[y * img_W];
+			result[3 * n + 1] = G[y * img_W];
+			result[3 * n + 2] = B[y * img_W];
+
+			//R[img_H * img_W + n] = R[y * img_W];
+			//G[img_H * img_W + n] = G[y * img_W];
+			//B[img_H * img_W + n] = B[y * img_W];
 		}
 	}
 

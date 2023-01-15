@@ -121,35 +121,43 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
     // ------------------------------------------------------
 
     size_t left_to_sum = (size_t)std::ceilf(img_H / (float)max_work_group_size);
-    //std::cout << left_to_sum << std::endl;
-    size_t table_size = (img_W * img_H + left_to_sum) * 3;
+    size_t table_size = img_W * img_H;
 
-    float* BigFactors = new float[left_to_sum * 3];
-    if (!BigFactors) 
+    float* factor_result = new float[left_to_sum * 3];
+    if (!factor_result)
     {
-        ERROR("BigFactors table allocation was unsuccessful");
+        ERROR("factor_result table allocation was unsuccessful");
     }
-
 
     // Alokacja pamięci na GPU
     // -----------------------
 
-    cl_mem cl_BigFactors = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * table_size, NULL);
+    //cl_mem cl_BigFactors = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * table_size, NULL);
+    cl_mem cl_R = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * table_size, NULL);
+    cl_mem cl_G = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * table_size, NULL);
+    cl_mem cl_B = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * table_size, NULL);
+
+    cl_mem cl_factor_result = create_buffer(context, CL_MEM_READ_WRITE, sizeof(float) * left_to_sum * 3, NULL);
     cl_mem cl_img = create_buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(char) * img_W * img_H * 3, img);
 
     // Ustawienie parametrów kerneli
     // -----------------------------
 
-    set_argument(kernel_rows, 0, sizeof(cl_mem), &cl_BigFactors);
-    set_argument(kernel_rows, 1, sizeof(cl_mem), &cl_img);
-    set_argument(kernel_rows, 2, sizeof(int), &img_W);
-    set_argument(kernel_rows, 3, sizeof(int), &img_H);
-    set_argument(kernel_rows, 4, sizeof(int), &xComponents);
-    set_argument(kernel_rows, 5, sizeof(int), &yComponents);
+    set_argument(kernel_rows, 0, sizeof(cl_mem), &cl_R);
+    set_argument(kernel_rows, 1, sizeof(cl_mem), &cl_G);
+    set_argument(kernel_rows, 2, sizeof(cl_mem), &cl_B);
+    set_argument(kernel_rows, 3, sizeof(cl_mem), &cl_img);
+    set_argument(kernel_rows, 4, sizeof(int), &img_W);
+    set_argument(kernel_rows, 5, sizeof(int), &img_H);
+    set_argument(kernel_rows, 6, sizeof(int), &xComponents);
+    set_argument(kernel_rows, 7, sizeof(int), &yComponents);
 
-    set_argument(kernel_column, 0, sizeof(cl_mem), &cl_BigFactors);
-    set_argument(kernel_column, 1, sizeof(int), &img_W);
-    set_argument(kernel_column, 2, sizeof(int), &img_H);
+    set_argument(kernel_column, 0, sizeof(cl_mem), &cl_R);
+    set_argument(kernel_column, 1, sizeof(cl_mem), &cl_G);
+    set_argument(kernel_column, 2, sizeof(cl_mem), &cl_B);
+    set_argument(kernel_column, 3, sizeof(cl_mem), &cl_factor_result);
+    set_argument(kernel_column, 4, sizeof(int), &img_W);
+    set_argument(kernel_column, 5, sizeof(int), &img_H);
 
 
     // Ustawienie liczby wątków oraz rozmiaru pojedynczego work-group (CUDA: rozmiaru bloku)
@@ -185,8 +193,8 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
             // Uruchamiamy pierwszy kernel, w którym liczymy sumy w poszczególnych rzędach
             // ----------------------------------------------------------------------------
 
-            set_argument(kernel_rows, 6, sizeof(int), &x);
-            set_argument(kernel_rows, 7, sizeof(int), &y);
+            set_argument(kernel_rows, 8, sizeof(int), &x);
+            set_argument(kernel_rows, 9, sizeof(int), &y);
 
             err = clEnqueueNDRangeKernel(queue, kernel_rows, 2, NULL, rows_global_size, rows_local_size, 0, NULL, &kernel_event);
             if (err < 0) 
@@ -204,8 +212,8 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
             // Uruchamiamy drugi kernel, w którym liczymy sumę w pierwszej kolumnie
             // ----------------------------------------------------------------------------
 
-            set_argument(kernel_column, 3, sizeof(int), &x);
-            set_argument(kernel_column, 4, sizeof(int), &y);
+            set_argument(kernel_column, 6, sizeof(int), &x);
+            set_argument(kernel_column, 7, sizeof(int), &y);
 
             err = clEnqueueNDRangeKernel(queue, kernel_column, 2, NULL, column_global_size, column_local_size, 0, NULL, &kernel_event);
             if (err < 0) 
@@ -223,7 +231,7 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
             // Czytamy informację z bufora na GPU
             // ----------------------------------------------------------------------------
 
-            err = clEnqueueReadBuffer(queue, cl_BigFactors, CL_TRUE, img_H * img_W * 3 * sizeof(float), left_to_sum * 3 * sizeof(float), BigFactors, 0, NULL, &kernel_event);
+            err = clEnqueueReadBuffer(queue, cl_factor_result, CL_TRUE, 0, left_to_sum * 3 * sizeof(float), factor_result, 0, NULL, &kernel_event);
             if (err < 0)
             {
                 ERROR("Couldn't read from cl_BigFactors");
@@ -243,9 +251,9 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
             
             for (size_t i = 0; i < left_to_sum; i++)
             {
-                r += BigFactors[i * 3 + 0];
-                g += BigFactors[i * 3 + 1];
-                b += BigFactors[i * 3 + 2];
+                r += factor_result[i * 3 + 0];
+                g += factor_result[i * 3 + 1];
+                b += factor_result[i * 3 + 2];
             }
 
             float normalisation = (x == 0 && y == 0) ? 1.0f : 2.0f;
@@ -314,12 +322,12 @@ const char* BigFactors(cl_device_id& device, cl_context& context, cl_command_que
     // ----------
     
     free(factors);
-    free(BigFactors);
-
+    delete[] factor_result;
+    
     clReleaseProgram(program);
     clReleaseKernel(kernel_column);
     clReleaseKernel(kernel_rows);
-    clReleaseMemObject(cl_BigFactors);
+    clReleaseMemObject(cl_factor_result);
     clReleaseMemObject(cl_img);
 
     return buffer;
